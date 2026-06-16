@@ -50,17 +50,18 @@
                 Dialeto do PostgreSQL para geração otimizada de SQL.
 
                 Histórico de aliases:
-                  - Hibernate 5.3 (WildFly 26.1): org.hibernate.dialect.PostgreSQL10Dialect
-                    é o dialeto específico mais recente disponível.
+                  - Hibernate 5.3.28 (WildFly 26.1): o dialeto mais recente disponível
+                    é PostgreSQL95Dialect. PostgreSQL10Dialect só existe a partir do
+                    Hibernate 5.4.x e NÃO está presente no WildFly 26.1.
                   - Hibernate 6.x (WildFly 27+): org.hibernate.dialect.PostgreSQLDialect
                     (auto-detecta versão do servidor).
 
                 Para PostgreSQL 15 no WildFly 26.1 (Hibernate 5.3),
-                PostgreSQL10Dialect é o correto — suporta todas as features
-                usadas no projeto (JSON, JSONB não são usados aqui).
+                PostgreSQL95Dialect é o correto — suporta todas as features
+                usadas no projeto (CTE, RETURNING, ON CONFLICT etc.).
             -->
             <property name="hibernate.dialect"
-                      value="org.hibernate.dialect.PostgreSQL10Dialect"/>
+                      value="org.hibernate.dialect.PostgreSQL95Dialect"/>
 
             <!--
                 Estratégia de criação de schema:

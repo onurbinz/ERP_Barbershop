@@ -1,0 +1,22 @@
+# ==============================================================================
+# k8s/namespace.yaml
+# Namespace — Isolamento lógico de todos os recursos do ERP Barbershop
+#
+# Por que usar Namespace?
+#   • Isola os recursos do ERP dos demais workloads do cluster
+#   • Permite aplicar ResourceQuota e LimitRange por namespace
+#   • Simplifica limpeza: "kubectl delete namespace erp" remove tudo de uma vez
+#   • Boa prática de segurança: RBAC pode ser scoped por namespace
+#
+# Aplique com:
+#   kubectl apply -f k8s/namespace.yaml
+# ==============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: erp
+  labels:
+    app: erp-barbershop
+    environment: development
+    managed-by: kubectl

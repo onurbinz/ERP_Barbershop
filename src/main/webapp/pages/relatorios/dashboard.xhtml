@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="http://xmlns.jcp.org/jsf/html"
+      xmlns:f="http://xmlns.jcp.org/jsf/core"
+      xmlns:p="http://primefaces.org/ui"
+      xmlns:ui="http://xmlns.jcp.org/jsf/facelets"
+      lang="pt-BR">
+
+<h:head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description"
+          content="Painel de controle do ERP Barbershop — métricas de vendas, alertas de estoque e gráficos analíticos." />
+    <title>Dashboard — ERP Barbershop</title>
+
+    <!-- Fonte Inter via Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap"
+          rel="stylesheet" />
+
+    <!-- CSS Global do ERP + CSS específico do Dashboard -->
+    <h:outputStylesheet library="css" name="erp.css" />
+    <h:outputStylesheet library="css" name="dashboard.css" />
+
+    <!-- Extenders Chart.js (devem ser carregados ANTES dos gráficos PF) -->
+    <h:outputScript library="js" name="dashboard-charts.js" target="head" />
+</h:head>
+
+<h:body styleClass="dashboard-body">
+
+    <!-- ================================================================ -->
+    <!-- Mensagens globais (Growl) — posicionado fixo no canto superior   -->
+    <!-- ================================================================ -->
+    <p:growl id="growl" life="4000" showDetail="true" />
+
+    <!-- ================================================================ -->
+    <!-- TOPBAR — Navegação e ações globais                               -->
+    <!-- ================================================================ -->
+    <header class="dashboard-topbar">
+        <div class="dashboard-topbar-brand">
+            <i class="fa fa-scissors" aria-hidden="true"></i>
+            <span>ERP Barbershop</span>
+            <span style="font-weight:400; color:var(--color-muted); margin-left:.5rem;">/ Dashboard</span>
+        </div>
+
+        <nav class="dashboard-topbar-actions">
+            <!-- Botão Atualizar dados -->
+            <p:commandButton id="btnAtualizar"
+                             value="Atualizar"
+                             icon="fa fa-refresh"
+                             styleClass="btn-secondary"
+                             actionListener="#{dashboardController.atualizar}"
+                             update="@form"
+                             process="@this">
+                <p:ajax event="click"
+                        oncomplete="PF('btnAtualizarWidget').jq.blur();"/>
+            </p:commandButton>
+
+            <!-- Link para o PDV -->
+            <a href="#{request.contextPath}/pages/vendas/pdv.xhtml" class="btn-link">
+                <i class="fa fa-shopping-cart" aria-hidden="true"></i>
+                PDV
+            </a>
+
+            <!-- Link para Relatórios -->
+            <a href="#{request.contextPath}/pages/relatorios/relatorios.xhtml" class="btn-link">
+                <i class="fa fa-file-text-o" aria-hidden="true"></i>
+                Relatórios
+            </a>
+        </nav>
+    </header>
+
+    <!-- ================================================================ -->
+    <!-- CONTEÚDO PRINCIPAL                                               -->
+    <!-- ================================================================ -->
+    <main class="dashboard-content">
+
+        <h:form id="dashboardForm">
+
+            <!-- -------------------------------------------------------- -->
+            <!-- Seção 1: KPI Cards                                        -->
+            <!-- -------------------------------------------------------- -->
+            <div class="kpi-grid" role="region" aria-label="Métricas principais">
+
+                <!-- KPI 1: Total Vendas Hoje -->
+                <article class="kpi-card kpi-card-primary">
+                    <div class="kpi-label">
+                        <i class="fa fa-dollar" aria-hidden="true"></i>
+                        Faturado Hoje
+                    </div>
+                    <div class="kpi-value" id="kpi-total-hoje">
+                        #{dashboardController.totalVendasHojeFormatado}
+                    </div>
+                    <div class="kpi-sub">
+                        #{dashboardController.contagemVendasHoje}
+                        #{dashboardController.contagemVendasHoje == 1 ? 'venda' : 'vendas'} fechadas
+                    </div>
+                    <i class="fa fa-line-chart kpi-icon-bg" aria-hidden="true"></i>
+                </article>
+
+                <!-- KPI 2: Total Vendas do Mês -->
+                <article class="kpi-card kpi-card-success">
+                    <div class="kpi-label">
+                        <i class="fa fa-calendar" aria-hidden="true"></i>
+                        Faturado no Mês
+                    </div>
+                    <div class="kpi-value" id="kpi-total-mes">
+                        #{dashboardController.totalVendasMesFormatado}
+                    </div>
+                    <div class="kpi-sub">Mês corrente acumulado</div>
+                    <i class="fa fa-bar-chart kpi-icon-bg" aria-hidden="true"></i>
+                </article>
+
+                <!-- KPI 3: Alertas de Estoque -->
+                <article class="kpi-card #{dashboardController.temAlertaEstoque ? 'kpi-card-warning' : 'kpi-card-success'}">
+                    <div class="kpi-label">
+                        <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+                        Alertas de Estoque
+                    </div>
+                    <div class="kpi-value" id="kpi-alertas-estoque">
+                        #{dashboardController.contagemEstoqueBaixo}
+                    </div>
+                    <div class="kpi-sub">
+                        #{dashboardController.contagemEstoqueBaixo == 0
+                            ? 'Todos os produtos em dia'
+                            : 'produto(s) abaixo do mínimo'}
+                    </div>
+                    <i class="fa fa-archive kpi-icon-bg" aria-hidden="true"></i>
+                </article>
+
+                <!-- KPI 4: Top Produto do Mês -->
+                <article class="kpi-card kpi-card-danger">
+                    <div class="kpi-label">
+                        <i class="fa fa-trophy" aria-hidden="true"></i>
+                        Mais Vendido (Mês)
+                    </div>
+                    <div class="kpi-value" id="kpi-top-produto"
+                         style="font-size:1.15rem; line-height:1.3">
+                        <h:outputText
+                            value="#{empty dashboardController.top5Produtos ? '—' : dashboardController.top5Produtos[0].nomeProduto}"
+                            rendered="#{not empty dashboardController.top5Produtos}" />
+                        <h:outputText value="—"
+                            rendered="#{empty dashboardController.top5Produtos}" />
+                    </div>
+                    <div class="kpi-sub">
+                        <h:outputText
+                            value="#{dashboardController.top5Produtos[0].totalVendido} unid. vendidas"
+                            rendered="#{not empty dashboardController.top5Produtos}" />
+                    </div>
+                    <i class="fa fa-star kpi-icon-bg" aria-hidden="true"></i>
+                </article>
+
+            </div><!-- /.kpi-grid -->
+
+            <!-- -------------------------------------------------------- -->
+            <!-- Seção 2: Alertas de Estoque Baixo                         -->
+            <!-- -------------------------------------------------------- -->
+            <section class="alertas-section"
+                     role="region"
+                     aria-label="Alertas de estoque baixo"
+                     rendered="#{dashboardController.temAlertaEstoque}">
+
+                <div class="alerta-dashboard-header">
+                    <h2 class="alerta-dashboard-title">
+                        <i class="fa fa-exclamation-circle" aria-hidden="true"></i>
+                        Produtos com Estoque Baixo
+                    </h2>
+                    <span class="badge-count" id="badge-estoque-baixo"
+                          aria-label="#{dashboardController.contagemEstoqueBaixo} produtos em alerta">
+                        #{dashboardController.contagemEstoqueBaixo}
+                    </span>
+                </div>
+
+                <!-- Grid de cards de alerta (máx. 6 exibidos aqui) -->
+                <div class="alertas-grid" id="alertas-grid">
+                    <ui:repeat value="#{dashboardController.produtosEstoqueBaixo}"
+                               var="prod"
+                               end="5">
+                        <div class="alerta-item-card #{prod.quantidadeEstoque == 0 ? 'critico' : ''}">
+                            <div class="alerta-item-icon">
+                                <i class="fa #{prod.quantidadeEstoque == 0 ? 'fa-times-circle' : 'fa-warning'}"
+                                   aria-hidden="true"></i>
+                            </div>
+                            <div class="alerta-item-info">
+                                <div class="alerta-item-nome" title="#{prod.nome}">
+                                    #{prod.nome}
+                                </div>
+                                <div class="alerta-item-detalhe">
+                                    Estoque:
+                                    <span class="valor-atual">#{prod.quantidadeEstoque}</span>
+                                    / mín. #{prod.quantidadeMinima} un.
+                                </div>
+                            </div>
+                        </div>
+                    </ui:repeat>
+                </div>
+
+                <!-- Se houver mais de 6, exibe link para relatório completo -->
+                <p style="margin-top:.75rem; font-size:.8rem; color:var(--color-muted);"
+                   rendered="#{dashboardController.contagemEstoqueBaixo gt 6}">
+                    <i class="fa fa-info-circle"></i>
+                    Exibindo 6 de #{dashboardController.contagemEstoqueBaixo} produtos em alerta.
+                    <a href="relatorios.xhtml" class="link-subtle">Ver todos no Relatório →</a>
+                </p>
+            </section>
+
+            <!-- Painel de sucesso quando estoque está em dia -->
+            <h:panelGroup rendered="#{not dashboardController.temAlertaEstoque}">
+                <div class="alerta-ok-painel">
+                    <i class="fa fa-check-circle" aria-hidden="true"></i>
+                    <div>
+                        <strong>Estoque em dia!</strong>
+                        Nenhum produto abaixo do estoque mínimo neste momento.
+                    </div>
+                </div>
+            </h:panelGroup>
+
+            <!-- -------------------------------------------------------- -->
+            <!-- Seção 3: Gráficos Analíticos                              -->
+            <!-- -------------------------------------------------------- -->
+            <div class="charts-grid"
+                 role="region"
+                 aria-label="Gráficos analíticos">
+
+                <!-- Gráfico 1: Faturamento dos últimos 7 dias (FULL WIDTH) -->
+                <div class="chart-card chart-full">
+                    <div class="chart-header">
+                        <div>
+                            <h2 class="chart-title">
+                                <i class="fa fa-bar-chart" aria-hidden="true"></i>
+                                Faturamento — Últimos 7 Dias
+                            </h2>
+                            <div class="chart-subtitle">Soma do valor total de vendas fechadas por dia</div>
+                        </div>
+                    </div>
+
+                    <h:panelGroup rendered="#{not empty dashboardController.vendasSemana}">
+                        <div class="chart-container">
+                            <!-- p:chart renderiza <canvas> + inicializa Chart.js -->
+                            <p:chart type="bar"
+                                     id="graficoVendasSemana"
+                                     model="#{dashboardController.graficoVendasSemana}"
+                                     style="width:100%;height:100%"
+                                     aria-label="Gráfico de barras de faturamento semanal" />
+                        </div>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{empty dashboardController.vendasSemana}">
+                        <div class="chart-empty">
+                            <i class="fa fa-bar-chart" aria-hidden="true"></i>
+                            <span>Nenhuma venda registrada nos últimos 7 dias.</span>
+                        </div>
+                    </h:panelGroup>
+                </div>
+
+                <!-- Gráfico 2: Top-5 Mais Vendidos (Barras Horizontais) -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div>
+                            <h2 class="chart-title">
+                                <i class="fa fa-trophy" aria-hidden="true"></i>
+                                Top 5 — Mais Vendidos do Mês
+                            </h2>
+                            <div class="chart-subtitle">Em unidades — mês corrente</div>
+                        </div>
+                    </div>
+
+                    <h:panelGroup rendered="#{not empty dashboardController.top5Produtos}">
+                        <div class="chart-container">
+                            <p:chart type="bar"
+                                     id="graficoTop5"
+                                     model="#{dashboardController.graficoTop5Produtos}"
+                                     style="width:100%;height:100%"
+                                     aria-label="Gráfico horizontal dos 5 produtos mais vendidos" />
+                        </div>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{empty dashboardController.top5Produtos}">
+                        <div class="chart-empty">
+                            <i class="fa fa-trophy" aria-hidden="true"></i>
+                            <span>Sem vendas registradas neste mês ainda.</span>
+                        </div>
+                    </h:panelGroup>
+                </div>
+
+                <!-- Gráfico 3: Pizza — Receita por Produto -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div>
+                            <h2 class="chart-title">
+                                <i class="fa fa-pie-chart" aria-hidden="true"></i>
+                                Receita por Produto (Top 5)
+                            </h2>
+                            <div class="chart-subtitle">Participação % na receita do mês</div>
+                        </div>
+                    </div>
+
+                    <h:panelGroup rendered="#{not empty dashboardController.top5Produtos}">
+                        <div class="chart-container">
+                            <p:chart type="pie"
+                                     id="graficoPizza"
+                                     model="#{dashboardController.graficoPizza}"
+                                     style="width:100%;height:100%"
+                                     aria-label="Gráfico de pizza da participação de receita por produto" />
+                        </div>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{empty dashboardController.top5Produtos}">
+                        <div class="chart-empty">
+                            <i class="fa fa-pie-chart" aria-hidden="true"></i>
+                            <span>Sem dados de receita para exibir.</span>
+                        </div>
+                    </h:panelGroup>
+                </div>
+
+            </div><!-- /.charts-grid -->
+
+            <!-- -------------------------------------------------------- -->
+            <!-- Seção 4: Tabela Top-5 com Ranking Visual                  -->
+            <!-- -------------------------------------------------------- -->
+            <h:panelGroup rendered="#{not empty dashboardController.top5Produtos}">
+                <section class="chart-card" style="margin-bottom:2rem;"
+                         role="region" aria-label="Ranking de produtos mais vendidos">
+
+                    <div class="chart-header">
+                        <h2 class="chart-title">
+                            <i class="fa fa-list-ol" aria-hidden="true"></i>
+                            Ranking Detalhado — Mês Corrente
+                        </h2>
+                    </div>
+
+                    <table class="top5-table" aria-label="Tabela ranking de produtos">
+                        <thead>
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">Produto</th>
+                                <th scope="col">Volume Vendido</th>
+                                <th scope="col" style="text-align:right">Receita Gerada</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <ui:repeat value="#{dashboardController.top5Produtos}"
+                                       var="prod"
+                                       varStatus="vs">
+                                <tr>
+                                    <td>
+                                        <span class="rank-pos
+                                            #{vs.index == 0 ? 'gold' : ''}
+                                            #{vs.index == 1 ? 'silver' : ''}
+                                            #{vs.index == 2 ? 'bronze' : ''}">
+                                            #{vs.index + 1}
+                                        </span>
+                                    </td>
+                                    <td>#{prod.nomeProduto}</td>
+                                    <td>
+                                        <!-- Barra proporcional ao maior valor -->
+                                        <div class="rank-bar-wrapper">
+                                            <div class="rank-bar" aria-hidden="true">
+                                                <div class="rank-bar-fill"
+                                                     data-pct="#{(prod.totalVendido * 100) / dashboardController.top5Produtos[0].totalVendido}"
+                                                     style="width:0%">
+                                                </div>
+                                            </div>
+                                            <span class="rank-bar-val">#{prod.totalVendido}</span>
+                                        </div>
+                                    </td>
+                                    <td style="text-align:right; font-weight:600; color:#4ade80;">
+                                        <h:outputText value="#{prod.receitaGerada}">
+                                            <f:convertNumber type="currency"
+                                                             currencySymbol="R$ "
+                                                             groupingUsed="true"
+                                                             minFractionDigits="2"
+                                                             maxFractionDigits="2"
+                                                             locale="pt_BR" />
+                                        </h:outputText>
+                                    </td>
+                                </tr>
+                            </ui:repeat>
+                        </tbody>
+                    </table>
+
+                </section>
+            </h:panelGroup>
+
+        </h:form><!-- /#dashboardForm -->
+    </main>
+
+    <!-- ================================================================ -->
+    <!-- Script: ativa as barras de ranking após renderização do Facelets  -->
+    <!-- ================================================================ -->
+    <h:outputScript target="body">
+        // Aguarda o PrimeFaces terminar de renderizar os componentes antes
+        // de animar as barras de ranking (necessário por causa do AJAX)
+        if (typeof PrimeFaces !== 'undefined') {
+            PrimeFaces.onDocumentReady(function() { initRankBars(); });
+        }
+    </h:outputScript>
+
+</h:body>
+</html>

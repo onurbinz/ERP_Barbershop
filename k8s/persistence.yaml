@@ -1,0 +1,70 @@
+# ==============================================================================
+# k8s/persistence.yaml
+# PersistentVolume + PersistentVolumeClaim — Armazenamento persistente do PostgreSQL
+#
+# Sem persistência, os dados do banco são perdidos a cada restart do Pod.
+# O PVC garante que o volume sobrevive ao ciclo de vida do Pod.
+#
+# Topologia de volumes:
+#   PersistentVolume (PV)    → alocação física no Node (hostPath em Minikube)
+#   PersistentVolumeClaim    → requisição de armazenamento pelo Pod
+#   postgres-deployment      → monta o PVC em /var/lib/postgresql/data
+#
+# Aplique com:
+#   kubectl apply -f k8s/persistence.yaml -n erp
+# ==============================================================================
+
+# ==============================================================================
+# PersistentVolume — hostPath (apenas para Minikube/Kind/desenvolvimento)
+#
+# ⚠ ATENÇÃO: hostPath é adequado APENAS para desenvolvimento local.
+#   Em produção, use:
+#   • Cloud: GKE PD, AWS EBS, Azure Disk (via StorageClass dinâmica)
+#   • On-Premise: NFS, Longhorn, Rook-Ceph, OpenEBS
+# ==============================================================================
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: postgres-pv
+  labels:
+    app: erp-barbershop
+    component: database
+    type: local
+spec:
+  storageClassName: manual      # Nome customizado (deve coincidir com o PVC abaixo)
+  capacity:
+    storage: 2Gi                # 2 GB — suficiente para dados de desenvolvimento
+  accessModes:
+    - ReadWriteOnce             # Apenas um Node grava ao mesmo tempo (correto para PostgreSQL)
+  # hostPath: diretório no Node (Minikube VM ou Kind container)
+  # Em Minikube: "minikube ssh -- ls /mnt/data/erp-postgres" para verificar
+  hostPath:
+    path: /mnt/data/erp-postgres
+    type: DirectoryOrCreate     # Cria o diretório se não existir
+  # Política de retenção: Retain mantém o volume mesmo após deletar o PVC
+  # (permite recuperar dados em caso de delete acidental do PVC)
+  persistentVolumeReclaimPolicy: Retain
+
+---
+
+# ==============================================================================
+# PersistentVolumeClaim — requisição de armazenamento pelo Pod PostgreSQL
+#
+# O Deployment do PostgreSQL referencia este PVC pelo nome "postgres-pvc"
+# no campo volumes[].persistentVolumeClaim.claimName
+# ==============================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc            # ← Referenciado no deployment.yaml
+  namespace: erp
+  labels:
+    app: erp-barbershop
+    component: database
+spec:
+  storageClassName: manual      # Deve coincidir com o PV acima
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi              # Deve ser ≤ capacidade do PV (2Gi)

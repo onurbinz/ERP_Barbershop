@@ -47,6 +47,12 @@
         <!-- Plugins -->
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
         <maven-war-plugin.version>3.4.0</maven-war-plugin.version>
+
+        <!-- Etapa 5: Relatórios e Dashboard -->
+        <!-- iText 7: geração de PDF via OutputStream (Relatório Financeiro e Estoque) -->
+        <itext7.version>7.2.5</itext7.version>
+        <!-- OpenCSV: exportação CSV com escape correto de caracteres especiais -->
+        <opencsv.version>5.9</opencsv.version>
     </properties>
 
     <!-- ====================================================== -->
@@ -121,6 +127,29 @@
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-config</artifactId>
             <version>${spring-security.version}</version>
+        </dependency>
+
+        <!-- ================================================== -->
+        <!-- Etapa 5: Relatórios e Dashboard                    -->
+        <!-- ================================================== -->
+
+        <!-- iText 7 Core — geração de PDF diretamente no HttpServletResponse --
+             Contém: kernel, layout, io (dependências transitivas inclusas).   --
+             Alternativa OSS à versão comercial iText 8.                       -->
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>itext7-core</artifactId>
+            <version>${itext7.version}</version>
+            <type>pom</type>
+        </dependency>
+
+        <!-- OpenCSV 5.x — escrita de CSV com suporte a BOM UTF-8,           --
+             escape de caracteres especiais e separador configurável.          --
+             Ponto-e-vírgula como separador para compatibilidade com Excel BR. -->
+        <dependency>
+            <groupId>com.opencsv</groupId>
+            <artifactId>opencsv</artifactId>
+            <version>${opencsv.version}</version>
         </dependency>
 
     </dependencies>

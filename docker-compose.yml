@@ -1,5 +1,21 @@
 version: "3.9"
 
+# ==============================================================================
+# ERP Barbershop — Docker Compose
+#
+# Execução simples (único comando):
+#   docker compose up --build
+#
+# A pilha sobe na ordem correta:
+#   1. postgres  (banco de dados + schema DDL automático)
+#   2. wildfly   (aguarda o banco ficar saudável antes de iniciar)
+#
+# Acesso após subir:
+#   Aplicação : http://localhost:8080/erp-barbershop
+#   Admin WF  : http://localhost:9990   (admin / Admin#2026)
+#   PostgreSQL: localhost:5432           (erp_admin / erp_secret_2026)
+# ==============================================================================
+
 services:
 
   # ============================================================
@@ -13,15 +29,22 @@ services:
       POSTGRES_USER: erp_admin
       POSTGRES_PASSWORD: erp_secret_2026
       POSTGRES_DB: erp_db
+      # Locale e encoding para suporte correto ao português
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
     ports:
       - "5432:5432"
     volumes:
+      # Persiste os dados entre restarts (não perde ao parar o compose)
       - pgdata:/var/lib/postgresql/data
+      # Script DDL executado automaticamente na primeira inicialização.
+      # O PostgreSQL executa arquivos de /docker-entrypoint-initdb.d/ em ordem alfabética.
+      - ./docs/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U erp_admin -d erp_db"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 15s
     networks:
       - erp-network
 
@@ -36,14 +59,15 @@ services:
     container_name: erp-barbershop-app
     restart: unless-stopped
     ports:
-      - "8080:8080"     # HTTP — aplicação
-      - "8443:8443"     # HTTPS — aplicação
-      - "9990:9990"     # Console de administração
+      - "8080:8080"   # HTTP — aplicação
+      - "9990:9990"   # Console de administração WildFly
     depends_on:
       postgres:
+        # Só inicia o WildFly depois do healthcheck do postgres passar
         condition: service_healthy
     environment:
-      DB_HOST: postgres
+      # Estas variáveis são lidas pelo configure-datasource.cli no WildFly
+      DB_HOST: postgres       # Nome do serviço Docker = hostname na rede interna
       DB_PORT: 5432
       DB_NAME: erp_db
       DB_USER: erp_admin
@@ -52,14 +76,17 @@ services:
       - erp-network
 
 # ==============================================================
-# Volumes nomeados para persistência
+# Volumes nomeados para persistência dos dados do PostgreSQL
+# Os dados sobrevivem a: docker compose stop / docker compose down
+# Para apagar os dados: docker compose down -v
 # ==============================================================
 volumes:
   pgdata:
     driver: local
 
 # ==============================================================
-# Rede isolada para comunicação entre serviços
+# Rede isolada — os containers se comunicam pelo nome do serviço
+# O WildFly acessa o banco em postgres:5432 (não localhost)
 # ==============================================================
 networks:
   erp-network:

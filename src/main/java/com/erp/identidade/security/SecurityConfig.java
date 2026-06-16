@@ -174,13 +174,17 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
             // ------------------------------------------------------------------
             // [2] CANAL SEGURO — HTTPS OBRIGATÓRIO
-            // Redireciona HTTP → HTTPS em todas as rotas.
-            // O web.xml também declara CONFIDENTIAL no security-constraint,
-            // criando uma dupla proteção (container + Spring).
+            //
+            // DESABILITADO EM DESENVOLVIMENTO (Docker Compose porta 8080 / HTTP).
+            // Em produção com SSL/TLS configurado no WildFly, descomente o bloco:
+            //
+            // .requiresChannel()
+            //     .anyRequest().requiresSecure()
+            // .and()
+            //
+            // O web.xml também tem o bloco security-constraint comentado por padrão.
+            // Para ativar HTTPS, descomente ambos os blocos simultaneamente.
             // ------------------------------------------------------------------
-            .requiresChannel()
-                .anyRequest().requiresSecure()
-            .and()
 
             // ------------------------------------------------------------------
             // [3] AUTORIZAÇÃO DE ROTAS — RBAC (ADMIN / DEFAULT)

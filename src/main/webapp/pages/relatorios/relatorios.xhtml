@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="http://xmlns.jcp.org/jsf/html"
+      xmlns:f="http://xmlns.jcp.org/jsf/core"
+      xmlns:p="http://primefaces.org/ui"
+      lang="pt-BR">
+
+<h:head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description"
+          content="Central de Relatórios do ERP Barbershop — exportação de relatório financeiro e de estoque baixo em PDF e CSV." />
+    <title>Relatórios — ERP Barbershop</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap"
+          rel="stylesheet" />
+
+    <h:outputStylesheet library="css" name="erp.css" />
+    <h:outputStylesheet library="css" name="dashboard.css" />
+</h:head>
+
+<h:body styleClass="dashboard-body">
+
+    <p:growl id="growl" life="5000" showDetail="true" />
+
+    <!-- ================================================================ -->
+    <!-- TOPBAR                                                            -->
+    <!-- ================================================================ -->
+    <header class="dashboard-topbar">
+        <div class="dashboard-topbar-brand">
+            <i class="fa fa-scissors" aria-hidden="true"></i>
+            <span>ERP Barbershop</span>
+            <span style="font-weight:400; color:var(--color-muted); margin-left:.5rem;">/ Relatórios</span>
+        </div>
+        <nav class="dashboard-topbar-actions">
+            <a href="dashboard.xhtml" class="btn-link">
+                <i class="fa fa-dashboard" aria-hidden="true"></i>
+                Dashboard
+            </a>
+            <a href="#{request.contextPath}/pages/vendas/pdv.xhtml" class="btn-link">
+                <i class="fa fa-shopping-cart" aria-hidden="true"></i>
+                PDV
+            </a>
+        </nav>
+    </header>
+
+    <!-- ================================================================ -->
+    <!-- CONTEÚDO PRINCIPAL                                               -->
+    <!-- ================================================================ -->
+    <main class="dashboard-content">
+
+        <h:form id="relatoriosForm" enctype="application/x-www-form-urlencoded">
+
+            <!-- Título da seção -->
+            <div class="page-header" style="margin-bottom:2rem;">
+                <div>
+                    <h1 class="page-title">
+                        <i class="fa fa-file-text-o" aria-hidden="true"></i>
+                        Central de Relatórios
+                    </h1>
+                    <p style="color:var(--color-muted); font-size:.875rem; margin-top:.35rem;">
+                        Exporte relatórios financeiros e de estoque em PDF ou CSV.
+                    </p>
+                </div>
+            </div>
+
+            <!-- -------------------------------------------------------- -->
+            <!-- Grid de Relatórios                                        -->
+            <!-- -------------------------------------------------------- -->
+            <div class="relatorios-section">
+
+                <!-- CARD 1: Relatório Financeiro -->
+                <article class="relatorio-card"
+                         aria-label="Relatório financeiro por período">
+
+                    <div class="relatorio-card-header">
+                        <div class="relatorio-card-icon financeiro">
+                            <i class="fa fa-dollar" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <div class="relatorio-card-title">Relatório Financeiro</div>
+                            <div class="relatorio-card-desc">
+                                Todas as vendas fechadas no período selecionado,
+                                com detalhes de itens, operador e forma de pagamento.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Seleção de período com p:datePicker -->
+                    <div class="periodo-form">
+                        <div class="form-group" style="margin-bottom:0">
+                            <label for="dataInicioFin" class="form-group">
+                                <i class="fa fa-calendar-o"></i> Data Início
+                            </label>
+                            <p:datePicker id="dataInicioFin"
+                                          value="#{relatorioExportController.dataInicio}"
+                                          pattern="dd/MM/yyyy"
+                                          locale="pt"
+                                          showIcon="true"
+                                          styleClass="form-input"
+                                          placeholder="dd/mm/aaaa">
+                                <f:convertDateTime pattern="dd/MM/yyyy" />
+                            </p:datePicker>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom:0">
+                            <label for="dataFimFin" class="form-group">
+                                <i class="fa fa-calendar-check-o"></i> Data Fim
+                            </label>
+                            <p:datePicker id="dataFimFin"
+                                          value="#{relatorioExportController.dataFim}"
+                                          pattern="dd/MM/yyyy"
+                                          locale="pt"
+                                          showIcon="true"
+                                          styleClass="form-input"
+                                          placeholder="dd/mm/aaaa">
+                                <f:convertDateTime pattern="dd/MM/yyyy" />
+                            </p:datePicker>
+                        </div>
+                    </div>
+
+                    <!-- Botões de exportação -->
+                    <div class="export-actions">
+                        <!-- PDF: chama o método Java que escreve no HttpServletResponse -->
+                        <p:commandButton id="btnExportPdfFin"
+                                         value="Exportar PDF"
+                                         icon="fa fa-file-pdf-o"
+                                         styleClass="btn-export-pdf"
+                                         action="#{relatorioExportController.exportarFinanceiroPdf}"
+                                         ajax="false"
+                                         title="Gera PDF com todas as vendas do período">
+                        </p:commandButton>
+
+                        <!-- CSV: chama o método Java que escreve no HttpServletResponse -->
+                        <p:commandButton id="btnExportCsvFin"
+                                         value="Exportar CSV"
+                                         icon="fa fa-file-excel-o"
+                                         styleClass="btn-export-csv"
+                                         action="#{relatorioExportController.exportarFinanceiroCsv}"
+                                         ajax="false"
+                                         title="Gera planilha CSV com separador ponto-e-vírgula (Excel BR)">
+                        </p:commandButton>
+                    </div>
+
+                    <!-- Dica de uso -->
+                    <p style="font-size:.78rem; color:var(--color-muted); margin-top:.5rem;">
+                        <i class="fa fa-info-circle"></i>
+                        O CSV utiliza separador <code>;</code> e codificação UTF-8 com BOM
+                        para compatibilidade com Excel.
+                    </p>
+
+                </article><!-- /.relatorio-card (Financeiro) -->
+
+                <!-- CARD 2: Relatório de Estoque Baixo -->
+                <article class="relatorio-card"
+                         aria-label="Relatório de estoque baixo">
+
+                    <div class="relatorio-card-header">
+                        <div class="relatorio-card-icon estoque">
+                            <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <div class="relatorio-card-title">Relatório de Estoque Baixo</div>
+                            <div class="relatorio-card-desc">
+                                Todos os produtos ativos com estoque atual abaixo ou igual
+                                ao mínimo configurado, ordenados do mais crítico ao menos crítico.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Destaque: contagem atual -->
+                    <div style="display:flex; align-items:center; gap:.75rem;
+                                padding:.85rem 1rem;
+                                background:rgba(245,158,11,.07);
+                                border:1px solid rgba(245,158,11,.2);
+                                border-radius:var(--radius);
+                                margin-bottom:1rem;">
+                        <i class="fa fa-archive" style="color:#fbbf24; font-size:1.4rem;"></i>
+                        <div>
+                            <div style="font-weight:700; color:#fbbf24; font-size:1.1rem;">
+                                Snapshot em tempo real
+                            </div>
+                            <div style="font-size:.8rem; color:var(--color-muted);">
+                                O relatório reflete o estoque atual no momento da exportação.
+                                Nenhuma seleção de período é necessária.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botões de exportação -->
+                    <div class="export-actions">
+                        <p:commandButton id="btnExportPdfEstoque"
+                                         value="Exportar PDF"
+                                         icon="fa fa-file-pdf-o"
+                                         styleClass="btn-export-pdf"
+                                         action="#{relatorioExportController.exportarEstoqueBaixoPdf}"
+                                         ajax="false"
+                                         title="Gera PDF com todos os produtos em alerta de estoque">
+                        </p:commandButton>
+
+                        <p:commandButton id="btnExportCsvEstoque"
+                                         value="Exportar CSV"
+                                         icon="fa fa-file-excel-o"
+                                         styleClass="btn-export-csv"
+                                         action="#{relatorioExportController.exportarEstoqueBaixoCsv}"
+                                         ajax="false"
+                                         title="Gera CSV com produtos em alerta — inclui déficit de reposição">
+                        </p:commandButton>
+                    </div>
+
+                    <!-- Coluna "Déficit" explicada -->
+                    <p style="font-size:.78rem; color:var(--color-muted); margin-top:.5rem;">
+                        <i class="fa fa-info-circle"></i>
+                        A coluna <strong>Déficit</strong> no CSV/PDF indica
+                        quantas unidades precisam ser compradas para atingir o estoque mínimo.
+                    </p>
+
+                </article><!-- /.relatorio-card (Estoque) -->
+
+            </div><!-- /.relatorios-section -->
+
+            <!-- -------------------------------------------------------- -->
+            <!-- Painel informativo — Dependências necessárias             -->
+            <!-- -------------------------------------------------------- -->
+            <div class="painel-info" role="complementary"
+                 aria-label="Dependências de bibliotecas">
+                <div class="ui-panel-content">
+                    <p class="info-texto">
+                        <i class="fa fa-cog"></i>
+                        <strong>Dependências necessárias no pom.xml:</strong>
+                        iText 7 Core (<code>com.itextpdf:itext7-core:7.2.5</code>)
+                        e OpenCSV (<code>com.opencsv:opencsv:5.9</code>).
+                        Veja a seção de dependências no README do projeto.
+                    </p>
+                </div>
+            </div>
+
+        </h:form>
+    </main>
+
+</h:body>
+</html>

@@ -1,0 +1,363 @@
+# ==============================================================================
+# k8s/deployment.yaml
+# Deployments — WildFly (aplicação) e PostgreSQL (banco de dados)
+#
+# Este arquivo contém DOIS Deployments separados em um único manifesto,
+# divididos pelo separador "---" do YAML.
+#
+# Topologia:
+#   [Internet] → NodePort (30080) → Service erp-app-service
+#                                 → Pod WildFly (erp-barbershop)
+#                                 → ClusterIP postgres-service
+#                                 → Pod PostgreSQL
+#
+# Referências ConfigMap/Secret:
+#   ConfigMap : erp-barbershop-config  (configmap.yaml)
+#   Secret    : erp-barbershop-secrets (secret.yaml)
+#
+# Aplique com:
+#   kubectl apply -f k8s/deployment.yaml -n erp
+# ==============================================================================
+
+# ==============================================================================
+# DEPLOYMENT 1: PostgreSQL 15
+# StatefulSet seria mais correto para bancos com volumes persistentes,
+# mas Deployment + PVC funciona bem para ambientes de desenvolvimento (Minikube/Kind).
+# ==============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-deployment
+  namespace: erp
+  labels:
+    app: erp-barbershop
+    component: database
+    tier: data
+spec:
+  # Banco de dados: 1 réplica (PostgreSQL single-node não suporta multi-master nativo)
+  replicas: 1
+
+  selector:
+    matchLabels:
+      component: database
+
+  # ─── Estratégia de atualização ─────────────────────────────────────────────
+  # Recreate: para o pod antigo ANTES de criar o novo.
+  # Necessário para banco de dados com volume (evita dois pods gravando no mesmo PVC).
+  strategy:
+    type: Recreate
+
+  template:
+    metadata:
+      labels:
+        app: erp-barbershop
+        component: database
+        tier: data
+    spec:
+      # ─── Container PostgreSQL ─────────────────────────────────────────────
+      containers:
+        - name: postgres
+          image: postgres:15-alpine  # Alpine: menor footprint (~80 MB vs ~400 MB no debian)
+          imagePullPolicy: IfNotPresent  # Usa cache local (bom para Minikube)
+
+          ports:
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
+
+          # ─── Variáveis de ambiente ────────────────────────────────────────
+          env:
+            # POSTGRES_DB: cria o banco "erp_db" na primeira inicialização
+            # Origem: ConfigMap erp-barbershop-config, chave "postgres-db"
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: erp-barbershop-config
+                  key: postgres-db
+
+            # POSTGRES_USER: usuário administrador do banco
+            # Origem: Secret erp-barbershop-secrets, chave "db-username"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: erp-barbershop-secrets
+                  key: db-username
+
+            # POSTGRES_PASSWORD: senha do usuário administrador
+            # Origem: Secret erp-barbershop-secrets, chave "db-password"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: erp-barbershop-secrets
+                  key: db-password
+
+            # Garante que o PostgreSQL use UTF-8 por padrão
+            - name: POSTGRES_INITDB_ARGS
+              value: "--encoding=UTF8 --locale=pt_BR.UTF-8"
+
+            # Diretório de dados do PostgreSQL dentro do container
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+
+          # ─── Volume de dados persistente ──────────────────────────────────
+          # Montado em /var/lib/postgresql/data — padrão do PostgreSQL
+          # O PVC "postgres-pvc" é definido no persistence.yaml
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+
+            # Script de inicialização do schema (montado como ConfigMap de arquivo)
+            # O PostgreSQL executa arquivos .sql de /docker-entrypoint-initdb.d/ na 1ª inicialização
+            - name: postgres-init-scripts
+              mountPath: /docker-entrypoint-initdb.d/
+              readOnly: true
+
+          # ─── Limites de recursos ──────────────────────────────────────────
+          # requests: garantia mínima de recursos alocados pelo scheduler
+          # limits:   teto máximo — se ultrapassar, o container é OOM-killed (memória)
+          #           ou throttled (CPU)
+          resources:
+            requests:
+              cpu: "250m"     # 0.25 vCPU garantido
+              memory: "256Mi" # 256 MB garantido
+            limits:
+              cpu: "500m"     # max 0.5 vCPU
+              memory: "512Mi" # max 512 MB — OOM Kill se ultrapassar
+
+          # ─── Probes de saúde ──────────────────────────────────────────────
+          # livenessProbe: container está vivo? (falhou → restart)
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - erp_admin
+                - -d
+                - erp_db
+            initialDelaySeconds: 30  # Aguarda 30s antes do 1º check (tempo de boot)
+            periodSeconds: 10         # Verifica a cada 10s
+            timeoutSeconds: 5         # Timeout por verificação
+            failureThreshold: 3       # 3 falhas consecutivas → restart
+
+          # readinessProbe: container está pronto para receber tráfego?
+          # (falhou → pod removido do Service, mas NÃO reiniciado)
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - erp_admin
+                - -d
+                - erp_db
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+      # ─── Volumes ──────────────────────────────────────────────────────────
+      volumes:
+        # Volume persistente (PVC) para dados do PostgreSQL
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+
+        # Script SQL de inicialização do schema
+        # O arquivo schema.sql é montado de um ConfigMap criado pelo script de deploy
+        - name: postgres-init-scripts
+          configMap:
+            name: postgres-schema-config
+            # Torna o arquivo executável para o entrypoint do PostgreSQL
+            defaultMode: 0444
+
+---
+
+# ==============================================================================
+# DEPLOYMENT 2: WildFly 26.1 — Aplicação ERP Barbershop
+# ==============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: erp-barbershop-deployment
+  namespace: erp
+  labels:
+    app: erp-barbershop
+    component: app
+    tier: frontend
+  annotations:
+    # Documentação inline do deployment para kubectl describe
+    kubernetes.io/description: "ERP Barbershop - WildFly 26.1 + JSF 2.3 + EJB 3.2"
+spec:
+  # Aplicação: 2 réplicas para alta disponibilidade
+  # Requisito: o WildFly deve estar configurado para clustering (sessão replicada)
+  # Para desenvolvimento sem clustering, use replicas: 1
+  replicas: 2
+
+  selector:
+    matchLabels:
+      component: app
+
+  # ─── Estratégia de atualização ─────────────────────────────────────────────
+  # RollingUpdate: substitui os pods gradualmente, sem downtime.
+  # maxUnavailable: 0  → nunca derruba um pod sem ter outro pronto (zero-downtime)
+  # maxSurge: 1        → pode criar 1 pod extra durante o update
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  template:
+    metadata:
+      labels:
+        app: erp-barbershop
+        component: app
+        tier: frontend
+      annotations:
+        # Força re-deploy ao mudar o ConfigMap (sem mudar a imagem)
+        # Referência: kubectl rollout restart deployment/erp-barbershop-deployment
+        config-hash: "v1"
+    spec:
+      # ─── InitContainer: aguarda o banco ficar disponível ──────────────────
+      # Evita o erro de "Connection refused" quando o app sobe antes do banco.
+      # Padrão "wait-for-it" usando nc (netcat) disponível na maioria das imagens.
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36-musl
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              echo "Aguardando PostgreSQL em postgres-service:5432..."
+              until nc -z postgres-service 5432; do
+                echo "PostgreSQL ainda não disponível. Tentando em 3s..."
+                sleep 3
+              done
+              echo "PostgreSQL disponível! Iniciando WildFly..."
+
+      # ─── Container principal: WildFly ─────────────────────────────────────
+      containers:
+        - name: wildfly
+          # Em produção: use uma tag de versão imutável (ex: seu-registry/erp-barbershop:1.0.0)
+          # Em Minikube: rode "eval $(minikube docker-env)" e use imagePullPolicy: Never
+          image: erp-barbershop:latest
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 8080  # Aplicação HTTP
+              protocol: TCP
+            - name: https
+              containerPort: 8443  # Aplicação HTTPS
+              protocol: TCP
+            - name: management
+              containerPort: 9990  # WildFly Admin Console
+              protocol: TCP
+
+          # ─── Variáveis de ambiente ────────────────────────────────────────
+          env:
+            # ── Origem: ConfigMap erp-barbershop-config ──────────────────
+            # DB_HOST: hostname do PostgreSQL dentro do cluster (resolvido pelo DNS k8s)
+            # Valor: "postgres-service" (nome do Service definido em service.yaml)
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: erp-barbershop-config
+                  key: db-host
+
+            # DB_PORT: porta do PostgreSQL (5432)
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: erp-barbershop-config
+                  key: db-port
+
+            # DB_NAME: nome do banco de dados ("erp_db")
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: erp-barbershop-config
+                  key: db-name
+
+            # JAVA_OPTS: opções de tunning da JVM (heap, timezone, encoding)
+            - name: JAVA_OPTS
+              valueFrom:
+                configMapKeyRef:
+                  name: erp-barbershop-config
+                  key: java-opts
+
+            # ── Origem: Secret erp-barbershop-secrets ────────────────────
+            # DB_USER: usuário do banco (nunca expor em logs!)
+            # O WildFly CLI resolve: ${env.DB_USER:erp_admin} em runtime
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: erp-barbershop-secrets
+                  key: db-username
+
+            # DB_PASSWORD: senha do banco (valor descriptografado pelo k8s no runtime)
+            # O WildFly CLI resolve: ${env.DB_PASSWORD:erp_secret_2026} em runtime
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: erp-barbershop-secrets
+                  key: db-password
+
+          # ─── Limites de recursos ──────────────────────────────────────────
+          # WildFly 26.1 exige ao menos 512Mi para iniciar com EJB + JPA + JSF
+          # O heap máximo (-Xmx512m no ConfigMap java-opts) deve caber dentro de memory.limits
+          resources:
+            requests:
+              cpu: "500m"     # 0.5 vCPU garantido (WildFly boot é CPU-intensivo)
+              memory: "768Mi" # 768 MB garantido
+            limits:
+              cpu: "1000m"    # max 1 vCPU (1 core)
+              memory: "1Gi"   # max 1 GB RAM — headroom além do -Xmx512m para Metaspace
+
+          # ─── Probes de saúde ──────────────────────────────────────────────
+          # startupProbe: aguarda o WildFly subir antes de ativar as outras probes.
+          # O WildFly 26.1 demora ~60-90s para iniciar com a aplicação deployada.
+          startupProbe:
+            httpGet:
+              path: /erp-barbershop/
+              port: 8080
+            initialDelaySeconds: 60   # Aguarda 60s antes do 1º check
+            periodSeconds: 10          # Tenta a cada 10s
+            failureThreshold: 12       # Total: até 60 + (12 × 10) = 180s de tolerância
+            successThreshold: 1
+
+          # livenessProbe: container está vivo? (falhou → restart)
+          # Só ativa APÓS o startupProbe ter sucesso
+          livenessProbe:
+            httpGet:
+              path: /erp-barbershop/
+              port: 8080
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+
+          # readinessProbe: pod pronto para receber tráfego?
+          # Usa o Management Console do WildFly como health endpoint confiável
+          readinessProbe:
+            httpGet:
+              path: /management
+              port: 9990
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+      # ─── Política de restart ──────────────────────────────────────────────
+      restartPolicy: Always
+
+      # ─── Afinidade anti-co-localização ───────────────────────────────────
+      # Prevenção: os 2 pods WildFly não rodam no mesmo Node físico.
+      # Garante que a falha de um Node não derrube ambas as réplicas.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    component: app
+                topologyKey: kubernetes.io/hostname

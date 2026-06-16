@@ -1,0 +1,529 @@
+/* ==========================================================================
+   ERP Barbershop — Dashboard (dashboard.css)
+   Estilos específicos do Painel Inicial / Relatórios.
+   Complementa erp.css — não duplica variáveis globais.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Layout principal do Dashboard
+   -------------------------------------------------------------------------- */
+.dashboard-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: var(--color-bg);
+    font-family: var(--font);
+}
+
+.dashboard-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 2rem;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.dashboard-topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+.dashboard-topbar-brand i {
+    color: var(--color-primary);
+    font-size: 1.3rem;
+}
+
+.dashboard-topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+}
+
+.dashboard-content {
+    padding: 2rem;
+    flex: 1;
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* --------------------------------------------------------------------------
+   2. Seção de KPIs — Cards de métricas principais
+   -------------------------------------------------------------------------- */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 1100px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px)  { .kpi-grid { grid-template-columns: 1fr; } }
+
+.kpi-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: calc(var(--radius) * 1.5);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    position: relative;
+    overflow: hidden;
+    transition: transform .2s, box-shadow .2s;
+}
+.kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0,0,0,.35);
+}
+
+/* Faixa colorida no topo de cada card */
+.kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: calc(var(--radius) * 1.5) calc(var(--radius) * 1.5) 0 0;
+}
+.kpi-card-primary::before  { background: var(--color-primary); }
+.kpi-card-success::before  { background: var(--color-success); }
+.kpi-card-warning::before  { background: var(--color-warning); }
+.kpi-card-danger::before   { background: var(--color-danger); }
+
+.kpi-label {
+    font-size: .78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--color-muted);
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+}
+.kpi-label i { font-size: .9rem; }
+.kpi-card-primary .kpi-label i  { color: var(--color-primary); }
+.kpi-card-success .kpi-label i  { color: var(--color-success); }
+.kpi-card-warning .kpi-label i  { color: var(--color-warning); }
+.kpi-card-danger  .kpi-label i  { color: var(--color-danger);  }
+
+.kpi-value {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--color-text);
+    line-height: 1.1;
+    letter-spacing: -.01em;
+}
+.kpi-card-primary .kpi-value { color: #a5a0ff; }
+.kpi-card-success .kpi-value { color: #4ade80; }
+.kpi-card-warning .kpi-value { color: #fbbf24; }
+.kpi-card-danger  .kpi-value { color: #f87171; }
+
+.kpi-sub {
+    font-size: .8rem;
+    color: var(--color-muted);
+}
+
+/* Ícone decorativo no canto do card */
+.kpi-icon-bg {
+    position: absolute;
+    bottom: .75rem;
+    right: 1rem;
+    font-size: 3rem;
+    opacity: .07;
+}
+
+/* --------------------------------------------------------------------------
+   3. Seção de Gráficos
+   -------------------------------------------------------------------------- */
+.charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+}
+.chart-full { grid-column: 1 / -1; }
+
+@media (max-width: 900px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    .chart-full  { grid-column: 1; }
+}
+
+.chart-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: calc(var(--radius) * 1.5);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.chart-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+.chart-title i { color: var(--color-primary); }
+
+.chart-subtitle {
+    font-size: .78rem;
+    color: var(--color-muted);
+    margin-top: .15rem;
+}
+
+/* Container de altura fixa para o canvas do Chart.js */
+.chart-container {
+    position: relative;
+    height: 260px;
+    width: 100%;
+}
+
+/* Placeholder quando não há dados */
+.chart-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    gap: .75rem;
+    color: var(--color-muted);
+    font-size: .875rem;
+}
+.chart-empty i { font-size: 2.5rem; opacity: .4; }
+
+/* --------------------------------------------------------------------------
+   4. Painel de Alertas de Estoque (Dashboard)
+   -------------------------------------------------------------------------- */
+.alertas-section {
+    margin-bottom: 2rem;
+}
+
+.alerta-dashboard-header {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin-bottom: 1rem;
+}
+
+.alerta-dashboard-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fbbf24;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.badge-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 6px;
+    border-radius: 99px;
+    font-size: .75rem;
+    font-weight: 700;
+    background: rgba(239,68,68,.2);
+    color: #f87171;
+    border: 1px solid rgba(239,68,68,.4);
+    animation: pulse-badge 2s ease-in-out infinite;
+}
+
+/* Cartões individuais de alerta */
+.alertas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: .75rem;
+}
+
+.alerta-item-card {
+    background: rgba(245,158,11,.06);
+    border: 1px solid rgba(245,158,11,.25);
+    border-radius: var(--radius);
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    transition: border-color .2s;
+}
+.alerta-item-card:hover {
+    border-color: rgba(245,158,11,.55);
+}
+.alerta-item-card.critico {
+    background: rgba(239,68,68,.07);
+    border-color: rgba(239,68,68,.3);
+}
+.alerta-item-card.critico:hover {
+    border-color: rgba(239,68,68,.6);
+}
+
+.alerta-item-icon {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: rgba(245,158,11,.15);
+    display: flex; align-items: center; justify-content: center;
+    color: #fbbf24;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+.alerta-item-card.critico .alerta-item-icon {
+    background: rgba(239,68,68,.15);
+    color: #f87171;
+}
+
+.alerta-item-info { flex: 1; min-width: 0; }
+.alerta-item-nome {
+    font-size: .875rem;
+    font-weight: 600;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.alerta-item-detalhe {
+    font-size: .78rem;
+    color: var(--color-muted);
+    margin-top: .15rem;
+}
+.alerta-item-detalhe .valor-atual {
+    font-weight: 700;
+    color: #f87171;
+}
+
+/* Painel "estoque em dia" */
+.alerta-ok-painel {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    background: rgba(34,197,94,.07);
+    border: 1px solid rgba(34,197,94,.25);
+    border-radius: var(--radius);
+    color: #4ade80;
+    font-size: .95rem;
+}
+.alerta-ok-painel i { font-size: 1.8rem; }
+
+/* --------------------------------------------------------------------------
+   5. Seção de Relatórios — Exportação
+   -------------------------------------------------------------------------- */
+.relatorios-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+}
+@media (max-width: 768px) { .relatorios-section { grid-template-columns: 1fr; } }
+
+.relatorio-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: calc(var(--radius) * 1.5);
+    padding: 1.5rem;
+}
+
+.relatorio-card-header {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--color-border);
+}
+.relatorio-card-icon {
+    width: 44px; height: 44px;
+    border-radius: var(--radius);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+}
+.relatorio-card-icon.financeiro { background: rgba(108,99,255,.15); color: var(--color-primary); }
+.relatorio-card-icon.estoque    { background: rgba(245,158,11,.15); color: #fbbf24; }
+
+.relatorio-card-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+.relatorio-card-desc {
+    font-size: .8rem;
+    color: var(--color-muted);
+    margin-top: .2rem;
+}
+
+.periodo-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .75rem;
+    margin-bottom: 1rem;
+}
+
+.export-actions {
+    display: flex;
+    gap: .75rem;
+    flex-wrap: wrap;
+}
+
+/* Botão de exportação PDF */
+.btn-export-pdf.ui-button {
+    background: rgba(239,68,68,.12) !important;
+    border: 1px solid rgba(239,68,68,.35) !important;
+    color: #f87171 !important;
+    border-radius: var(--radius) !important;
+    font-weight: 600 !important;
+    padding: .55rem 1.1rem !important;
+    transition: background .2s !important;
+}
+.btn-export-pdf.ui-button:hover {
+    background: rgba(239,68,68,.25) !important;
+}
+
+/* Botão de exportação CSV */
+.btn-export-csv.ui-button {
+    background: rgba(34,197,94,.12) !important;
+    border: 1px solid rgba(34,197,94,.35) !important;
+    color: #4ade80 !important;
+    border-radius: var(--radius) !important;
+    font-weight: 600 !important;
+    padding: .55rem 1.1rem !important;
+    transition: background .2s !important;
+}
+.btn-export-csv.ui-button:hover {
+    background: rgba(34,197,94,.25) !important;
+}
+
+/* --------------------------------------------------------------------------
+   6. Tabela Top-5 no Dashboard
+   -------------------------------------------------------------------------- */
+.top5-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.top5-table thead th {
+    text-align: left;
+    font-size: .75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--color-muted);
+    padding: .6rem .75rem;
+    border-bottom: 1px solid var(--color-border);
+}
+.top5-table tbody td {
+    padding: .65rem .75rem;
+    font-size: .875rem;
+    color: var(--color-text);
+    border-bottom: 1px solid rgba(46,50,80,.5);
+    vertical-align: middle;
+}
+.top5-table tbody tr:last-child td { border-bottom: none; }
+.top5-table tbody tr:hover td {
+    background: rgba(108,99,255,.05);
+}
+
+/* Barra de progresso inline para ranking */
+.rank-bar-wrapper {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+}
+.rank-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--color-border);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.rank-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--color-primary), #a78bfa);
+    transition: width .6s ease;
+}
+.rank-bar-val {
+    font-size: .78rem;
+    color: var(--color-muted);
+    min-width: 28px;
+    text-align: right;
+}
+
+/* Posição no ranking */
+.rank-pos {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    font-size: .75rem;
+    font-weight: 700;
+    background: var(--color-surface-2);
+    color: var(--color-muted);
+}
+.rank-pos.gold   { background: rgba(245,158,11,.2); color: #fbbf24; }
+.rank-pos.silver { background: rgba(148,163,184,.15); color: #94a3b8; }
+.rank-pos.bronze { background: rgba(180,100,60,.15); color: #c87941; }
+
+/* --------------------------------------------------------------------------
+   7. Animações e utilitários
+   -------------------------------------------------------------------------- */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.kpi-card    { animation: fadeInUp .4s ease both; }
+.kpi-card:nth-child(1) { animation-delay: .05s; }
+.kpi-card:nth-child(2) { animation-delay: .10s; }
+.kpi-card:nth-child(3) { animation-delay: .15s; }
+.kpi-card:nth-child(4) { animation-delay: .20s; }
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+.loading-icon { animation: spin 1s linear infinite; }
+
+/* Separador de seção */
+.section-title {
+    font-size: .875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--color-muted);
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    margin-bottom: 1rem;
+}
+.section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--color-border);
+}
+
+/* Período do calendário PrimeFaces integrado com o tema dark */
+.periodo-form .ui-calendar { width: 100% !important; }
+.periodo-form .ui-inputtext {
+    background: var(--color-surface-2) !important;
+    border: 1px solid var(--color-border) !important;
+    color: var(--color-text) !important;
+    border-radius: var(--radius) !important;
+    padding: .55rem .8rem !important;
+    width: 100% !important;
+}

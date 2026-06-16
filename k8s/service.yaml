@@ -1,0 +1,131 @@
+# ==============================================================================
+# k8s/service.yaml
+# Services — Exposição de rede dos Pods no cluster e externamente
+#
+# Este arquivo define TRÊS Services:
+#   1. postgres-service  → ClusterIP  (interno ao cluster — banco não exposto)
+#   2. erp-app-service   → NodePort   (aplicação acessível externamente)
+#   3. erp-mgmt-service  → ClusterIP  (WildFly Admin Console — interno)
+#
+# Topologia de rede:
+#   [Browser] → NodePort :30080 → erp-app-service → Pods WildFly (:8080)
+#   [Pods]    → ClusterIP       → postgres-service → Pod PostgreSQL (:5432)
+#   [Ops]     → port-forward    → erp-mgmt-service → Pod WildFly (:9990)
+#
+# Aplique com:
+#   kubectl apply -f k8s/service.yaml -n erp
+# ==============================================================================
+
+# ==============================================================================
+# SERVICE 1: PostgreSQL — ClusterIP (somente interno ao cluster)
+#
+# ClusterIP é o tipo padrão e o mais seguro para bancos de dados:
+#   • Não é acessível de fora do cluster (sem NodePort, sem LoadBalancer)
+#   • Recebe um IP virtual estável que os Pods resolvem via DNS:
+#     postgres-service.erp.svc.cluster.local
+#   • O Deployment do WildFly usa DB_HOST = "postgres-service" (do ConfigMap)
+#     que o k8s DNS resolve para este ClusterIP
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service        # ← Este nome é o DB_HOST do ConfigMap
+  namespace: erp
+  labels:
+    app: erp-barbershop
+    component: database
+spec:
+  type: ClusterIP               # Interno apenas — banco NUNCA exposto externamente
+  selector:
+    component: database         # Seleciona Pods com label "component: database"
+                                # (label definida no template do postgres-deployment)
+  ports:
+    - name: postgres
+      protocol: TCP
+      port: 5432                # Porta do Service (usada pelos outros Pods)
+      targetPort: 5432          # Porta do container PostgreSQL
+
+---
+
+# ==============================================================================
+# SERVICE 2: Aplicação WildFly — NodePort (acesso externo ao cluster)
+#
+# NodePort abre a porta 30080 em TODOS os Nodes do cluster.
+# Em Minikube: acesse via "minikube service erp-app-service -n erp --url"
+# Em Kind:     acesse via "kubectl port-forward svc/erp-app-service 8080:8080 -n erp"
+#
+# Intervalo NodePort padrão do Kubernetes: 30000–32767
+#
+# Para produção: substitua NodePort por LoadBalancer (cloud) ou use
+# um Ingress Controller (NGINX, Traefik) para roteamento por hostname/path.
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: erp-app-service
+  namespace: erp
+  labels:
+    app: erp-barbershop
+    component: app
+  annotations:
+    # Documentação inline para "kubectl describe service erp-app-service"
+    kubernetes.io/description: "Expõe o WildFly ERP Barbershop na NodePort 30080"
+spec:
+  type: NodePort
+  selector:
+    component: app              # Seleciona Pods com label "component: app"
+                                # (label definida no template do erp-barbershop-deployment)
+  ports:
+    # ─── HTTP ──────────────────────────────────────────────────────────────
+    - name: http
+      protocol: TCP
+      port: 8080                # Porta do Service (ClusterIP interno)
+      targetPort: 8080          # Porta do container WildFly (HTTP)
+      nodePort: 30080           # Porta externa no Node (acesso pelo browser)
+                                # URL: http://<minikube-ip>:30080/erp-barbershop
+
+    # ─── HTTPS ─────────────────────────────────────────────────────────────
+    # Descomente se o WildFly estiver configurado com keystore/SSL
+    # - name: https
+    #   protocol: TCP
+    #   port: 8443
+    #   targetPort: 8443
+    #   nodePort: 30443         # URL: https://<minikube-ip>:30443/erp-barbershop
+
+  # sessionAffinity: ClientIP garante que um mesmo cliente sempre caia no mesmo Pod.
+  # Importante para JSF ViewScoped com sessão HTTP (evita erros de sessão cruzada).
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800     # 3 horas de afinidade de sessão
+
+---
+
+# ==============================================================================
+# SERVICE 3: WildFly Management Console — ClusterIP (interno + port-forward)
+#
+# O Management Console (porta 9990) é mantido interno ao cluster por segurança.
+# Para acessar em desenvolvimento, use port-forward:
+#
+#   kubectl port-forward svc/erp-mgmt-service 9990:9990 -n erp
+#   # Acesse: http://localhost:9990 (admin / Admin#2026)
+#
+# Em produção: considere remover completamente ou proteger com NetworkPolicy.
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: erp-mgmt-service
+  namespace: erp
+  labels:
+    app: erp-barbershop
+    component: management
+spec:
+  type: ClusterIP
+  selector:
+    component: app              # Mesmo seletor do erp-app-service (mesmo Pod)
+  ports:
+    - name: management
+      protocol: TCP
+      port: 9990
+      targetPort: 9990

@@ -1,0 +1,83 @@
+# ==============================================================================
+# k8s/configmap.yaml
+# ConfigMap — Configurações NÃO-SENSÍVEIS do ambiente
+#
+# Contém: URLs de conexão, nomes de banco, portas e parâmetros de tunning.
+# NÃO contém: senhas, tokens ou chaves privadas (esses vão no secret.yaml).
+#
+# Como é consumido no Deployment:
+#   env:
+#     - name: DB_HOST
+#       valueFrom:
+#         configMapKeyRef:
+#           name: erp-barbershop-config   ← nome deste ConfigMap
+#           key: db-host                  ← chave abaixo
+#
+# Aplique com:
+#   kubectl apply -f k8s/configmap.yaml -n erp
+# ==============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: erp-barbershop-config
+  namespace: erp
+  labels:
+    app: erp-barbershop
+    tier: config
+    version: "1.0.0"
+data:
+  # ─── Conexão com o banco de dados ─────────────────────────────────────────
+  # Valor: nome do Service do PostgreSQL dentro do cluster.
+  # O Kubernetes DNS resolve "postgres-service" para o ClusterIP correto.
+  # Referenciado no Deployment como DB_HOST → env.DB_HOST no WildFly CLI.
+  db-host: "postgres-service"
+
+  # Porta padrão do PostgreSQL
+  # Referenciado no Deployment como DB_PORT
+  db-port: "5432"
+
+  # Nome do banco de dados criado pelo initContainer (ou POSTGRES_DB do pod PG)
+  # Referenciado no Deployment como DB_NAME
+  db-name: "erp_db"
+
+  # JNDI name do DataSource registrado no WildFly standalone.xml via CLI
+  # Usado pela anotação @PersistenceContext(unitName="erpBarbershopPU") no JPA
+  db-jndi: "java:jboss/datasources/ErpBarbershopDS"
+
+  # ─── Configuração JVM / WildFly ───────────────────────────────────────────
+  # Opções da JVM passadas como variável de ambiente JAVA_OPTS para o WildFly.
+  # -Xms / -Xmx : heap mínimo/máximo (alinhado com limits.memory do Pod)
+  # -XX:+UseContainerSupport : detecta limites de memória do container corretamente
+  # -Djava.net.preferIPv4Stack=true : evita problemas de resolução DNS IPv6 em k8s
+  # -Dfile.encoding=UTF-8 : garante encoding correto para relatórios e CSV
+  java-opts: >-
+    -Xms256m
+    -Xmx512m
+    -XX:+UseContainerSupport
+    -XX:MaxRAMPercentage=75.0
+    -Djava.net.preferIPv4Stack=true
+    -Dfile.encoding=UTF-8
+    -Duser.timezone=America/Sao_Paulo
+
+  # ─── Configuração da aplicação ────────────────────────────────────────────
+  # Context path do WAR no WildFly (nome do arquivo WAR sem .war)
+  app-context-path: "/erp-barbershop"
+
+  # Porta HTTP do WildFly (bind via -b 0.0.0.0 no CMD do Dockerfile)
+  app-http-port: "8080"
+
+  # Porta do Management Console (acesso restrito via NetworkPolicy em produção)
+  app-mgmt-port: "9990"
+
+  # Nível de log da aplicação (mudar para WARN em produção)
+  log-level: "INFO"
+
+  # ─── Configuração do PostgreSQL (não-sensível) ────────────────────────────
+  # Usados como env vars no Deployment do postgres para criar o banco
+  postgres-db: "erp_db"
+
+  # Estratégia de inicialização do banco:
+  # "always"  : executa schema.sql a cada restart (dev)
+  # "never"   : confia que o banco já existe (produção)
+  db-init-strategy: "always"

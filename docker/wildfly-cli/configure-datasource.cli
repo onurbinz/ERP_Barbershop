@@ -1,0 +1,67 @@
+# ==============================================================================
+# configure-datasource.cli
+# WildFly JBoss CLI — Configura o DataSource PostgreSQL via variáveis de ambiente
+#
+# Este arquivo é executado durante o build da imagem Docker (STAGE 2).
+# As expressões ${env.DB_HOST:postgres} lêem variáveis de ambiente em RUNTIME:
+#   - Se a variável existir: usa o valor injetado (pelo Kubernetes Secret/ConfigMap)
+#   - Se não existir:        usa o valor padrão após o ":"
+#
+# Referência: https://docs.wildfly.org/26/Admin_Guide.html#DataSource
+# ==============================================================================
+
+# Inicia o WildFly em modo embedded (sem porta de rede) apenas para configuração
+embed-server --server-config=standalone.xml --std-out=echo
+
+# ─── 1. Adiciona o driver JDBC do PostgreSQL ──────────────────────────────────
+# O JAR do driver está no WAR (empacotado pelo Maven como dependência compile).
+# O WildFly detecta drivers JDBC automaticamente dentro de WARs deployados.
+# Esta instrução registra o driver com um nome simbólico para o datasource.
+/subsystem=datasources/jdbc-driver=postgresql:add( \
+    driver-name=postgresql, \
+    driver-module-name=org.postgresql, \
+    driver-class-name=org.postgresql.Driver, \
+    driver-datasource-class-name=org.postgresql.ds.PGSimpleDataSource \
+)
+
+# ─── 2. Remove datasource anterior (idempotência) ─────────────────────────────
+# Garante que re-execuções do CLI não quebrem por datasource duplicado.
+if (outcome == success) of /subsystem=datasources/data-source=ErpBarbershopDS:read-resource
+    /subsystem=datasources/data-source=ErpBarbershopDS:remove
+end-if
+
+# ─── 3. Cria o DataSource JTA ─────────────────────────────────────────────────
+# As expressões ${env.VARIAVEL:default} são resolvidas em RUNTIME pelo WildFly,
+# permitindo que o mesmo WAR rode com configurações diferentes por ambiente.
+#
+# Mapeamento com Kubernetes:
+#   DB_HOST     → valueFrom: configMapKeyRef  (configmap.yaml → db-host)
+#   DB_PORT     → valueFrom: configMapKeyRef  (configmap.yaml → db-port)
+#   DB_NAME     → valueFrom: configMapKeyRef  (configmap.yaml → db-name)
+#   DB_USER     → valueFrom: secretKeyRef     (secret.yaml    → db-username)
+#   DB_PASSWORD → valueFrom: secretKeyRef     (secret.yaml    → db-password)
+/subsystem=datasources/data-source=ErpBarbershopDS:add( \
+    jndi-name="java:jboss/datasources/ErpBarbershopDS", \
+    driver-name=postgresql, \
+    connection-url="jdbc:postgresql://${env.DB_HOST:postgres}:${env.DB_PORT:5432}/${env.DB_NAME:erp_db}", \
+    user-name="${env.DB_USER:erp_admin}", \
+    password="${env.DB_PASSWORD:erp_secret_2026}", \
+    enabled=true, \
+    use-java-context=true, \
+    jta=true, \
+    min-pool-size=2, \
+    max-pool-size=20, \
+    pool-prefill=true, \
+    idle-timeout-minutes=5, \
+    valid-connection-checker-class-name=org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker, \
+    exception-sorter-class-name=org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLExceptionSorter \
+)
+
+# ─── 4. Habilita estatísticas do pool (útil para monitoramento) ───────────────
+/subsystem=datasources/data-source=ErpBarbershopDS:write-attribute( \
+    name=statistics-enabled, \
+    value=true \
+)
+
+# Finaliza o servidor embedded — configuração salva no standalone.xml
+stop-embedded-server

@@ -1,0 +1,63 @@
+# ==============================================================================
+# .dockerignore — Arquivos excluídos do Docker build context
+#
+# Reduz o tamanho do contexto enviado ao daemon Docker, acelerando builds
+# e evitando que arquivos sensíveis (ex: .env, secrets locais) sejam
+# incluídos acidentalmente na imagem.
+#
+# Como funciona: o Docker daemon só recebe os arquivos NÃO listados aqui.
+# O STAGE 1 (Maven) copia: pom.xml + src/ — tudo que está aqui é ignorado.
+# ==============================================================================
+
+# ─── Controle de versão ───────────────────────────────────────────────────────
+.git
+.gitignore
+.gitattributes
+
+# ─── IDEs e editores ──────────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*.suo
+.settings/
+.classpath
+.project
+.factorypath
+
+# ─── Build artifacts (não precisamos — Maven rebuilda dentro do container) ────
+target/
+*.war
+*.jar
+*.class
+
+# ─── Kubernetes (não faz parte do build da imagem) ────────────────────────────
+k8s/
+deploy-k8s.sh
+
+# ─── Docker files de desenvolvimento ─────────────────────────────────────────
+docker-compose*.yml
+docker-compose*.yaml
+.env
+.env.*
+
+# ─── Documentação (não vai para a imagem) ─────────────────────────────────────
+docs/
+README.md
+*.md
+planner-agent.md
+
+# ─── Logs e temporários ───────────────────────────────────────────────────────
+*.log
+logs/
+tmp/
+temp/
+
+# ─── Testes (skipped no build de produção, mas context pode ser grande) ───────
+src/test/
+
+# ─── Arquivos do SO ───────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -97,29 +97,37 @@
         <cookie-config>
             <!-- HttpOnly: impede acesso ao cookie via JavaScript (XSS mitigation) -->
             <http-only>true</http-only>
-            <!-- Secure: cookie só trafega por HTTPS -->
-            <secure>true</secure>
+            <!--
+                Secure: em produção (HTTPS) defina como true.
+                Em desenvolvimento via Docker Compose (HTTP), mantenha false.
+                O Docker Compose expõe apenas a porta 8080 sem SSL.
+            -->
+            <secure>false</secure>
             <name>JSESSIONID</name>
         </cookie-config>
         <!-- STRICT: cookie de sessão não é enviado em requisições cross-site -->
         <tracking-mode>COOKIE</tracking-mode>
     </session-config>
 
-    <!-- ====================================================== -->
-    <!-- Restrição de Segurança — HTTPS Obrigatório              -->
-    <!-- O container WildFly redireciona HTTP → HTTPS.          -->
-    <!-- O Spring Security também reforça via requiresChannel(). -->
-    <!-- ====================================================== -->
+    <!--
+    ====================================================
+    HTTPS OBRIGATÓRIO — desabilitado para desenvolvimento
+    ====================================================
+    Em produção com SSL configurado, descomente este bloco
+    para forçar o redirect HTTP → HTTPS no nível do container.
+    Em desenvolvimento com Docker Compose (porta 8080, sem SSL),
+    este bloco deve ficar comentado para a aplicação funcionar.
+
     <security-constraint>
         <web-resource-collection>
             <web-resource-name>Toda a aplicação</web-resource-name>
             <url-pattern>/*</url-pattern>
         </web-resource-collection>
         <user-data-constraint>
-            <!-- CONFIDENTIAL = requer HTTPS (o container redireciona automaticamente) -->
             <transport-guarantee>CONFIDENTIAL</transport-guarantee>
         </user-data-constraint>
     </security-constraint>
+    -->
 
     <!-- ====================================================== -->
     <!-- Páginas de Erro — Redirect para login em 403/401        -->

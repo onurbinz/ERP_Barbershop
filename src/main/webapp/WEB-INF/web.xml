@@ -51,10 +51,6 @@
     </context-param>
     <context-param>
         <param-name>contextConfigLocation</param-name>
-        <param-value>com.erp.identidade.security.SecurityConfig</param-value>
-    </context-param>
-    <context-param>
-        <param-name>contextConfigLocation</param-name>
         <!-- Aponta para a classe de configuração Spring (não usa XML do Spring) -->
         <param-value>com.erp.identidade.security.SecurityConfig</param-value>
     </context-param>
@@ -142,11 +138,11 @@
     <!-- ====================================================== -->
     <error-page>
         <error-code>403</error-code>
-        <location>/login?erro=acesso_negado</location>
+        <location>/login.xhtml?erro=acesso_negado</location>
     </error-page>
     <error-page>
         <error-code>401</error-code>
-        <location>/login?erro=nao_autenticado</location>
+        <location>/login.xhtml?erro=nao_autenticado</location>
     </error-page>
     <error-page>
         <error-code>404</error-code>

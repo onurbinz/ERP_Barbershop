@@ -82,9 +82,9 @@ RUN /opt/jboss/wildfly/bin/add-user.sh admin Admin#2026 --silent
 #
 # Instalamos o módulo ANTES de executar o CLI para que o comando
 # jdbc-driver=postgresql:add(..., driver-module-name=org.postgresql) funcione.
-COPY --from=builder /build/postgresql-driver.jar /tmp/postgresql-driver.jar
-COPY docker/wildfly-cli/module.xml /tmp/module.xml
-COPY docker/wildfly-cli/configure-datasource.cli /tmp/configure-datasource.cli
+COPY --from=builder --chown=jboss:jboss /build/postgresql-driver.jar /tmp/postgresql-driver.jar
+COPY --chown=jboss:jboss docker/wildfly-cli/module.xml /tmp/module.xml
+COPY --chown=jboss:jboss docker/wildfly-cli/configure-datasource.cli /tmp/configure-datasource.cli
 RUN mkdir -p /opt/jboss/wildfly/modules/org/postgresql/main \
     && cp /tmp/postgresql-driver.jar /opt/jboss/wildfly/modules/org/postgresql/main/postgresql-driver.jar \
     && cp /tmp/module.xml /opt/jboss/wildfly/modules/org/postgresql/main/module.xml \

@@ -2,6 +2,8 @@ package com.erp.identidade.security;
 
 import com.erp.identidade.service.UsuarioDetailsService;
 
+import javax.enterprise.inject.Vetoed;
+
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -47,6 +49,7 @@ import java.util.concurrent.TimeUnit;
  * @see LoginAttemptService
  * @see AuditoriaFilter
  */
+@Vetoed
 @Configuration
 @EnableWebSecurity
 

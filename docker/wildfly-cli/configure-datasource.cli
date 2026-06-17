@@ -21,7 +21,6 @@ embed-server --server-config=standalone.xml --std-out=echo
     driver-name=postgresql, \
     driver-module-name=org.postgresql, \
     driver-class-name=org.postgresql.Driver, \
-    driver-datasource-class-name=org.postgresql.ds.PGSimpleDataSource \
 )
 
 # ─── 2. Remove datasource anterior (idempotência) ─────────────────────────────

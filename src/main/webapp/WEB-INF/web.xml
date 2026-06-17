@@ -46,6 +46,14 @@
         <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
     </listener>
     <context-param>
+        <param-name>contextClass</param-name>
+        <param-value>org.springframework.web.context.support.AnnotationConfigWebApplicationContext</param-value>
+    </context-param>
+    <context-param>
+        <param-name>contextConfigLocation</param-name>
+        <param-value>com.erp.identidade.security.SecurityConfig</param-value>
+    </context-param>
+    <context-param>
         <param-name>contextConfigLocation</param-name>
         <!-- Aponta para a classe de configuração Spring (não usa XML do Spring) -->
         <param-value>com.erp.identidade.security.SecurityConfig</param-value>
@@ -155,18 +163,5 @@
     <welcome-file-list>
         <welcome-file>login.xhtml</welcome-file>
     </welcome-file-list>
-
-    <!-- ====================================================== -->
-    <!-- Definição de DataSource JTA (PostgreSQL)               -->
-    <!-- ====================================================== -->
-    <data-source>
-        <name>java:jboss/datasources/ErpBarbershopDS</name>
-        <class-name>org.postgresql.ds.PGSimpleDataSource</class-name>
-        <server-name>postgres</server-name>
-        <port-number>5432</port-number>
-        <database-name>erp_db</database-name>
-        <user>erp_admin</user>
-        <password>erp_secret_2026</password>
-    </data-source>
 
 </web-app>
